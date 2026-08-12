@@ -16,5 +16,4 @@ jar {
 dependencies {
     implementation libs.spring.boot.starter.web
     implementation libs.common.web
-    testImplementation libs.spring.boot.starter.test
 }

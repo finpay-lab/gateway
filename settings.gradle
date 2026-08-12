@@ -7,14 +7,12 @@ pluginManagement {
 
 rootProject.name = 'gateway'
 
+// Consume shared libraries (com.finpay:common-*) from the platform repo as a
+// composite build (source include). No Maven registry needed. See ADR-0011.
+includeBuild 'finpay-platform'
+
 dependencyResolutionManagement {
     repositories {
         mavenCentral()
-        maven {
-            name = 'GitHubPackages'
-            url = uri('https://maven.pkg.github.com/finpay-lab/platform')
-        }
     }
 }
-
-includeBuild 'build-logic'
