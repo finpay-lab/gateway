@@ -1,0 +1,25 @@
+// Testing conventions. Uses the version catalog accessors (libs.*) because raw
+// string coordinates fail to resolve inside a precompiled plugin.
+dependencies {
+    add('testImplementation', libs.junit.jupiter)
+    add('testRuntimeOnly', libs.junit.platform.launcher)
+    add('testImplementation', libs.assertj)
+    add('testImplementation', libs.mockito.core)
+    add('testImplementation', libs.mockito.junit)
+    add('testImplementation', libs.archunit)
+    add('testImplementation', libs.archunit.junit)
+    add('testImplementation', libs.testcontainers)
+    add('testImplementation', libs.testcontainers.junit)
+    add('testImplementation', libs.awaitility)
+}
+
+tasks.withType(Test).configureEach {
+    useJUnitPlatform()
+    // Testcontainers needs Docker; in environments without it, only unit tests
+    // run. We do not fail the whole suite if Docker is absent at this phase.
+    systemProperty 'user.language', 'en'
+}
+
+compileTestJava {
+    options.release = 21
+}

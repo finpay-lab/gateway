@@ -1,0 +1,10 @@
+// Quality conventions (placeholder for P14). Keeping the plugin id available so
+// later phases add Spotless/Checkstyle/PMD without touching every module.
+// Intentionally minimal in the foundation phase.
+tasks.register('qualityCheck') {
+    group = 'verification'
+    description = 'Aggregates static-analysis checks (added in security phase).'
+    doLast {
+        logger.lifecycle('qualityCheck: no checks configured in foundation phase.')
+    }
+}

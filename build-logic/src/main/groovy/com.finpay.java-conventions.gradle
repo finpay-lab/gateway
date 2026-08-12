@@ -1,0 +1,38 @@
+// Common Java + library setup shared by every module.
+plugins {
+    id 'java-library'
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // Lombok is broadly useful for value objects / aggregates. Version comes
+    // from the catalog (works standalone, i.e. without a Spring Boot BOM).
+    compileOnly libs.lombok
+    annotationProcessor libs.lombok
+    testCompileOnly libs.lombok
+    testAnnotationProcessor libs.lombok
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.release = 21
+}
+
+tasks.withType(Test).configureEach {
+    useJUnitPlatform()
+    testLogging {
+        events 'passed', 'skipped', 'failed'
+        showStandardStreams = false
+    }
+    // Tests run in CI containers where Docker may be available for Testcontainers.
+    systemProperty 'user.language', 'en'
+}

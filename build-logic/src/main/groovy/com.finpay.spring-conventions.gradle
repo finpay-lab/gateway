@@ -1,0 +1,30 @@
+// Spring Boot application module (services). Applies java-library so `api()`
+// configuration is available for shared libraries.
+plugins {
+    id 'java-library'
+    id 'org.springframework.boot'
+    id 'io.spring.dependency-management'
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    annotationProcessor libs.lombok
+    testAnnotationProcessor libs.lombok
+}
+
+// Libraries are not packaged as bootable jars. Services override this.
+bootJar {
+    enabled = false
+}
+jar {
+    enabled = true
+}
