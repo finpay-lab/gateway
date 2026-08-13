@@ -14,6 +14,19 @@ jar {
 }
 
 dependencies {
-    implementation libs.spring.boot.starter.web
-    implementation libs.common.web
+    // Reactive stack: Spring Cloud Gateway is WebFlux-based and is NOT compatible
+    // with a servlet (MVC) container, so the gateway does not depend on the
+    // servlet-only common-web/common-security platform libs. It reimplements the
+    // same wire contracts (X-Correlation-Id, problem-details shape) reactively.
+    implementation libs.spring.boot.starter.webflux
+    implementation libs.spring.cloud.starter.gateway
+    implementation libs.spring.boot.starter.security
+    implementation libs.spring.boot.starter.oauth2.resource.server
+    implementation libs.spring.boot.starter.data.redis.reactive
+    implementation libs.spring.boot.starter.actuator
+
+    testImplementation libs.spring.boot.starter.test
+    testImplementation libs.spring.security.test
+    // Consumed via the finpay-platform composite build (no Maven registry).
+    testImplementation libs.common.test
 }
