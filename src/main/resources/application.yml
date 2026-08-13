@@ -1,5 +1,164 @@
 server:
-  port: 8080
+  port: ${GATEWAY_PORT:8080}
+
 spring:
   application:
     name: gateway
+  # JWT validation (ADR-0006). Signature/JWKS + exp/nbf are validated by the
+  # resource-server decoder; iss/aud/azp are additionally enforced by
+  # TokenClaimsValidationFilter. The JWKS endpoint is only contacted lazily on
+  # the first authenticated request, so the gateway boots without the IdP.
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${JWT_JWKS_URI:http://localhost:8081/realms/finpay/protocol/openid-connect/certs}
+  # Redis backs the token-bucket rate limiter (per-client / per-IP, SECURITY.md).
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+  cloud:
+    gateway:
+      # CORS is a gateway responsibility (SECURITY.md). Origin allow-list is
+      # env-driven; the default keeps the lab usable from a local SPA.
+      globalcors:
+        add-to-simple-url-handler-mapping: true
+        cors-configurations:
+          '[/**]':
+            allowed-origin-patterns: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
+            allowed-methods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
+            allowed-headers: ['*']
+            exposed-headers: [X-Correlation-Id]
+            allow-credentials: true
+      # Route table: pure transport config (no business logic). Each service owns
+      # its contract paths; the gateway matches on those and forwards unchanged.
+      # Per-route token buckets: financial write paths get the tightest limits.
+      routes:
+        - id: identity
+          uri: ${IDENTITY_SERVICE_URI:http://localhost:8091}
+          predicates: [Path=/principal,/principal/**,/principals/**]
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 20
+                redis-rate-limiter.burstCapacity: 40
+                key-resolver: "#{@perClientKeyResolver}"
+        - id: customer
+          uri: ${CUSTOMER_SERVICE_URI:http://localhost:8092}
+          predicates: [Path=/customers/**]
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 20
+                redis-rate-limiter.burstCapacity: 40
+                key-resolver: "#{@perClientKeyResolver}"
+        - id: account
+          uri: ${ACCOUNT_SERVICE_URI:http://localhost:8093}
+          predicates: [Path=/accounts/**]
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 20
+                redis-rate-limiter.burstCapacity: 40
+                key-resolver: "#{@perClientKeyResolver}"
+        - id: wallet
+          uri: ${WALLET_SERVICE_URI:http://localhost:8094}
+          predicates: [Path=/wallets/**]
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 20
+                redis-rate-limiter.burstCapacity: 40
+                key-resolver: "#{@perClientKeyResolver}"
+        - id: ledger
+          uri: ${LEDGER_SERVICE_URI:http://localhost:8095}
+          predicates: [Path=/ledger/**,/postings/**,/entries/**]
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 20
+                redis-rate-limiter.burstCapacity: 40
+                key-resolver: "#{@perClientKeyResolver}"
+        - id: payment
+          uri: ${PAYMENT_SERVICE_URI:http://localhost:8096}
+          predicates: [Path=/payments/**]
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 10
+                redis-rate-limiter.burstCapacity: 20
+                key-resolver: "#{@perClientKeyResolver}"
+        - id: transfer
+          uri: ${TRANSFER_SERVICE_URI:http://localhost:8097}
+          predicates: [Path=/transfers/**]
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 5
+                redis-rate-limiter.burstCapacity: 10
+                key-resolver: "#{@perClientKeyResolver}"
+        - id: limit
+          uri: ${LIMIT_SERVICE_URI:http://localhost:8098}
+          predicates: [Path=/limits/**]
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 20
+                redis-rate-limiter.burstCapacity: 40
+                key-resolver: "#{@perClientKeyResolver}"
+        - id: notification
+          uri: ${NOTIFICATION_SERVICE_URI:http://localhost:8099}
+          predicates: [Path=/notifications/**]
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 20
+                redis-rate-limiter.burstCapacity: 40
+                key-resolver: "#{@perClientKeyResolver}"
+        - id: search
+          uri: ${SEARCH_SERVICE_URI:http://localhost:8100}
+          predicates: [Path=/search/**]
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 10
+                redis-rate-limiter.burstCapacity: 20
+                key-resolver: "#{@perClientKeyResolver}"
+        - id: reconciliation
+          uri: ${RECONCILIATION_SERVICE_URI:http://localhost:8101}
+          predicates: [Path=/reconciliation/**]
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 5
+                redis-rate-limiter.burstCapacity: 10
+                key-resolver: "#{@perClientKeyResolver}"
+        - id: audit
+          uri: ${AUDIT_SERVICE_URI:http://localhost:8102}
+          predicates: [Path=/audit/**]
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 20
+                redis-rate-limiter.burstCapacity: 40
+                key-resolver: "#{@perClientKeyResolver}"
+
+# Token claim expectations (ADR-0006: gateway validates iss/aud/azp). Values must
+# match the IdP realm + client configuration; override per environment.
+finpay:
+  gateway:
+    security:
+      expected-issuer: ${JWT_ISSUER:http://localhost:8081/realms/finpay}
+      expected-audience: ${JWT_AUDIENCE:finpay-api}
+      expected-azp: ${JWT_AZP:finpay-client}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway
+  endpoint:
+    health:
+      probes:
+        enabled: true
