@@ -93,3 +93,6 @@ docker run --rm -v "$PWD":/work -w /work -v gradle-cache:/root/.gradle \
 
 _No runs recorded yet. The worker appends lessons here after each issue._
 
+
+- **2026-08-17 04:41:34** `FP-32` — BUILT_WITH_FIX
+  branch ai/FP-32-fp-3-gateway-api-gateway-routing-auth-pr pushed but build/test FAILED - review

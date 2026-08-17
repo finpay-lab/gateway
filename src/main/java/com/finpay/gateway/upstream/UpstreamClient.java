@@ -42,7 +42,7 @@ public class UpstreamClient {
         while (true) {
             attempts++;
             try {
-                org.springframework.web.client.RestClient.RequestBodyUriSpec spec =
+                org.springframework.web.client.RestClient.RequestBodySpec spec =
                         restClient.method(request.getMethod()).uri(request.getUrl());
                 spec.headers(headers -> headers.putAll(request.getHeaders()));
                 if (request.getBody() != null) {
