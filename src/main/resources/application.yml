@@ -1,5 +1,79 @@
 server:
   port: 8080
+
 spring:
   application:
     name: gateway
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 500ms
+      connect-timeout: 500ms
+
+gateway:
+  auth:
+    issuer: ${GATEWAY_ISSUER:http://idp.finpay.local/realms/finpay}
+    audience: ${GATEWAY_AUDIENCE:finpay-api}
+    # Lab shortcut (documented): identity-service is not yet built, so the
+    # gateway validates a symmetric HMAC JWT instead of fetching the IdP JWKS.
+    # Prod shape (SECURITY.md): point `jwk-set-uri` at the IdP's /certs and
+    # drop the shared secret. Override in non-lab tiers via GATEWAY_JWT_SECRET.
+    secret: ${GATEWAY_JWT_SECRET:Y2hhbmdlbWUtdGhpcy1sYWItc2VjcmV0LXRva2VuLWZvci1maW5wYXktZ2F0ZXdheQ==}
+    open-paths:
+      - /healthz
+
+  cors:
+    allowed-origins:
+      - "*"
+
+  security:
+    # Edge security headers (CSP/HSTS/nosniff/...) are always applied.
+    enabled: true
+
+  rate-limit:
+    enabled: true
+    default:
+      capacity: 60
+      refill-per-second: 5
+    # Per-route overrides keyed by route id (SECURITY.md: critical financial
+    # endpoints are additionally rate-limited).
+    routes:
+      payment:
+        capacity: 10
+        refill-per-second: 2
+      transfer:
+        capacity: 20
+        refill-per-second: 4
+
+  upstream:
+    # Rule 8: every remote dependency defines timeout/retry/circuit-breaker.
+    connect-timeout: 2s
+    read-timeout: 5s
+    max-attempts: 3
+    backoff: 200ms
+    circuit-breaker:
+      failure-threshold: 5
+      open-duration: 30s
+
+  routes:
+    - id: identity
+      path: /identity
+      uri: ${IDENTITY_SERVICE_URL:http://identity-service:8081}
+      required-roles: []
+    - id: customer
+      path: /customer
+      uri: ${CUSTOMER_SERVICE_URL:http://customer-service:8082}
+      required-roles: [CUSTOMER, OPERATOR, ADMIN]
+    - id: account
+      path: /account
+      uri: ${ACCOUNT_SERVICE_URL:http://account-service:8083}
+      required-roles: [CUSTOMER, OPERATOR, ADMIN]
+    - id: payment
+      path: /payment
+      uri: ${PAYMENT_SERVICE_URL:http://payment-service:8084}
+      required-roles: [CUSTOMER, OPERATOR, ADMIN]
+    - id: transfer
+      path: /transfer
+      uri: ${TRANSFER_SERVICE_URL:http://transfer-service:8085}
+      required-roles: [CUSTOMER, OPERATOR, ADMIN]

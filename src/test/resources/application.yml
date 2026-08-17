@@ -1,0 +1,33 @@
+spring:
+  application:
+    name: gateway
+
+gateway:
+  auth:
+    issuer: http://idp.test/realms/finpay
+    audience: finpay-api
+    secret: Y2hhbmdlbWUtdGhpcy1sYWItc2VjcmV0LXRva2VuLWZvci1maW5wYXktZ2F0ZXdheQ==
+    open-paths:
+      - /healthz
+  rate-limit:
+    enabled: false
+    default:
+      capacity: 10
+      refill-per-second: 5
+  upstream:
+    connect-timeout: 500ms
+    read-timeout: 2s
+    max-attempts: 1
+    backoff: 5ms
+    circuit-breaker:
+      failure-threshold: 5
+      open-duration: 30s
+  routes:
+    - id: customer
+      path: /customer
+      uri: http://127.0.0.1:1
+      required-roles: [CUSTOMER, OPERATOR, ADMIN]
+    - id: admin
+      path: /admin
+      uri: http://127.0.0.1:1
+      required-roles: [ADMIN]
