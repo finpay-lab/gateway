@@ -8,6 +8,7 @@ import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+import com.finpay.gateway.config.GatewayProperties;
 import com.finpay.gateway.config.GatewayProperties.Cors;
 
 import jakarta.servlet.FilterChain;
@@ -32,8 +33,8 @@ public class SecurityHeadersFilter extends OncePerRequestFilter {
 
     private final Cors cors;
 
-    public SecurityHeadersFilter(Cors cors) {
-        this.cors = cors;
+    public SecurityHeadersFilter(GatewayProperties properties) {
+        this.cors = properties.cors();
     }
 
     @Override

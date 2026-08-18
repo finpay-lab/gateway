@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.finpay.gateway.config.GatewayProperties;
 import com.finpay.gateway.config.GatewayProperties.Auth;
 import com.finpay.gateway.web.ProblemDetailWriter;
 
@@ -38,9 +39,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final Auth auth;
     private final ObjectMapper objectMapper;
 
-    public JwtAuthenticationFilter(JwtValidator validator, Auth auth, ObjectMapper objectMapper) {
+    public JwtAuthenticationFilter(JwtValidator validator, GatewayProperties properties, ObjectMapper objectMapper) {
         this.validator = validator;
-        this.auth = auth;
+        this.auth = properties.auth();
         this.objectMapper = objectMapper;
     }
 
