@@ -21,17 +21,25 @@ class CircuitBreakerTest {
 
     @Test
     void opens_after_failure_threshold() {
-        breaker.execute(() -> { throw new RuntimeException("boom"); });
+        assertThatThrownBy(() -> breaker.execute(() -> {
+            throw new RuntimeException("boom");
+        })).isInstanceOf(RuntimeException.class);
         assertThat(breaker.isOpen()).isFalse();
 
-        breaker.execute(() -> { throw new RuntimeException("boom"); });
+        assertThatThrownBy(() -> breaker.execute(() -> {
+            throw new RuntimeException("boom");
+        })).isInstanceOf(RuntimeException.class);
         assertThat(breaker.isOpen()).isTrue();
     }
 
     @Test
     void rejects_fast_while_open() {
-        breaker.execute(() -> { throw new RuntimeException("boom"); });
-        breaker.execute(() -> { throw new RuntimeException("boom"); });
+        assertThatThrownBy(() -> breaker.execute(() -> {
+            throw new RuntimeException("boom");
+        })).isInstanceOf(RuntimeException.class);
+        assertThatThrownBy(() -> breaker.execute(() -> {
+            throw new RuntimeException("boom");
+        })).isInstanceOf(RuntimeException.class);
         assertThat(breaker.isOpen()).isTrue();
 
         assertThatThrownBy(() -> breaker.execute(() -> "rejected"))
@@ -40,8 +48,12 @@ class CircuitBreakerTest {
 
     @Test
     void probes_half_open_and_closes_on_success() throws Exception {
-        breaker.execute(() -> { throw new RuntimeException("boom"); });
-        breaker.execute(() -> { throw new RuntimeException("boom"); });
+        assertThatThrownBy(() -> breaker.execute(() -> {
+            throw new RuntimeException("boom");
+        })).isInstanceOf(RuntimeException.class);
+        assertThatThrownBy(() -> breaker.execute(() -> {
+            throw new RuntimeException("boom");
+        })).isInstanceOf(RuntimeException.class);
         assertThat(breaker.isOpen()).isTrue();
 
         Thread.sleep(1100);
@@ -51,21 +63,29 @@ class CircuitBreakerTest {
 
     @Test
     void reopens_when_probe_fails() throws Exception {
-        breaker.execute(() -> { throw new RuntimeException("boom"); });
-        breaker.execute(() -> { throw new RuntimeException("boom"); });
+        assertThatThrownBy(() -> breaker.execute(() -> {
+            throw new RuntimeException("boom");
+        })).isInstanceOf(RuntimeException.class);
+        assertThatThrownBy(() -> breaker.execute(() -> {
+            throw new RuntimeException("boom");
+        })).isInstanceOf(RuntimeException.class);
         assertThat(breaker.isOpen()).isTrue();
 
         Thread.sleep(1100);
-        assertThatThrownBy(() -> breaker.execute(() -> { throw new RuntimeException("still down"); }))
-                .isInstanceOf(RuntimeException.class);
+        assertThatThrownBy(() -> breaker.execute(() -> {
+            throw new RuntimeException("still down");
+        })).isInstanceOf(RuntimeException.class);
         assertThat(breaker.isOpen()).isTrue();
     }
 
     @Test
     void single_failure_does_not_open() {
         AtomicInteger calls = new AtomicInteger();
-        breaker.execute(() -> { throw new RuntimeException("boom"); });
+        assertThatThrownBy(() -> breaker.execute(() -> {
+            throw new RuntimeException("boom");
+        })).isInstanceOf(RuntimeException.class);
         assertThat(breaker.isOpen()).isFalse();
+
         breaker.execute(calls::incrementAndGet);
         assertThat(calls.get()).isEqualTo(1);
     }

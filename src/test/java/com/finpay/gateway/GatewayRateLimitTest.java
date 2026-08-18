@@ -1,61 +1,75 @@
 package com.finpay.gateway;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.List;
+import java.util.Map;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-import org.springframework.web.context.WebApplicationContext;
-import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
+import org.springframework.http.HttpStatus;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.mock.web.MockHttpServletResponse;
 
+import com.finpay.gateway.config.GatewayProperties;
+import com.finpay.gateway.config.GatewayProperties.Cors;
+import com.finpay.gateway.config.GatewayProperties.RateLimit;
+import com.finpay.gateway.config.GatewayProperties.RateLimitPolicy;
+import com.finpay.gateway.config.GatewayProperties.Route;
+import com.finpay.gateway.config.GatewayProperties.Upstream;
+import com.finpay.gateway.config.GatewayProperties.Auth;
+import com.finpay.gateway.config.GatewayProperties.Security;
+import com.finpay.gateway.config.GatewayProperties.CircuitBreakerPolicy;
+import com.finpay.gateway.ratelimit.RateLimitFilter;
 import com.finpay.gateway.ratelimit.RateLimitService;
-import com.finpay.gateway.security.TestJwts;
+import com.finpay.gateway.routing.RouteRegistry;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import jakarta.servlet.FilterChain;
 
 /**
  * Rate limiting at the gateway edge (SECURITY.md): a limited request is rejected
  * with 429 + Retry-After before it ever reaches the downstream service.
+ *
+ * <p>Exercised directly against {@link RateLimitFilter} (no Spring context) so
+ * the denying limiter is unambiguous — the SB4 test container replaced the
+ * {@code @MockBean} mechanism, and wiring a denying {@link RateLimitService}
+ * through the full context proved flaky against the {@code noOpRateLimiter}
+ * {@code @ConditionalOnMissingBean}.
  */
-@SpringBootTest
 class GatewayRateLimitTest {
 
-    @MockitoBean
-    private RateLimitService rateLimitService;
-
-    @Autowired
-    private WebApplicationContext wac;
-
-    private MockMvc mockMvc;
-
-    @BeforeEach
-    void setupMockMvc() {
-        this.mockMvc = MockMvcBuilders.webAppContextSetup(wac).build();
-    }
-
-    @BeforeEach
-    void denyEverything() {
-        when(rateLimitService.tryAcquire(anyString(), any(), anyLong()))
-                .thenReturn(new RateLimitService.Result(false, 2));
-    }
+    private static final RateLimitService DENY_ALL =
+            (key, policy, nowMillis) -> new RateLimitService.Result(false, 1);
 
     @Test
     void limited_request_returns_429_problem_with_retry_after() throws Exception {
-        String token = TestJwts.mint("alice", List.of("CUSTOMER"));
+        Route customer = new Route("customer", "/customer", "http://127.0.0.1:1", List.of("CUSTOMER"));
+        GatewayProperties props = new GatewayProperties(
+                new Auth(null, null, null, null, List.of("/healthz")),
+                new Cors(List.of("*")),
+                new Security(true),
+                new RateLimit(true, new RateLimitPolicy(10, 5), Map.of()),
+                new Upstream(null, null, 1, null, new CircuitBreakerPolicy(2, java.time.Duration.ofSeconds(30))),
+                List.of(customer));
+        RateLimitFilter filter = new RateLimitFilter(
+                props, DENY_ALL, new RouteRegistry(List.of(customer)), new ObjectMapper());
 
-        mockMvc.perform(get("/customer/ping").header("Authorization", "Bearer " + token))
-                .andExpect(status().isTooManyRequests())
-                .andExpect(header().string("Retry-After", "1"))
-                .andExpect(MockMvcResultMatchers.content().contentType("application/problem+json"));
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/customer/ping");
+        request.addHeader("Authorization", "Bearer tok");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        FilterChain chain = (req, res) -> {
+            throw new AssertionError("rate-limited request must not reach the chain");
+        };
+
+        filter.doFilter(request, response, chain);
+
+        assertThat(response.getStatus()).isEqualTo(HttpStatus.TOO_MANY_REQUESTS.value());
+        assertThat(response.getHeader("Retry-After")).isEqualTo("1");
+        assertThat(response.getContentType()).contains("application/problem+json");
     }
 }

@@ -57,6 +57,7 @@ class UpstreamClientTest {
                     respond(exchange, 200, "late");
                 }
                 case "/count" -> respond(exchange, 200, Integer.toString(calls));
+                case "/always-down" -> respond(exchange, 503, "down");
                 default -> respond(exchange, 200, "ok");
             }
         });
@@ -84,10 +85,10 @@ class UpstreamClientTest {
         UpstreamClient client = client(new Upstream(Duration.ofMillis(500), Duration.ofMillis(500), 5, Duration.ofMillis(5), CB));
 
         assertThatThrownBy(() -> client.exchange(
-                RequestEntity.post(uri("/count")).body(new byte[]{1})))
+                RequestEntity.post(uri("/always-down")).body(new byte[]{1})))
                 .isInstanceOf(UpstreamUnavailableException.class);
 
-        assertThat(counts.get("/count").get()).isEqualTo(1);
+        assertThat(counts.get("/always-down").get()).isEqualTo(1);
     }
 
     @Test
