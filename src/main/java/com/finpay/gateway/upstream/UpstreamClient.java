@@ -32,12 +32,12 @@ public class UpstreamClient {
         this.backoff = upstream.backoff();
     }
 
-    public ResponseEntity<byte[]> exchange(org.springframework.http.RequestEntity<byte[]> request) {
+    public ResponseEntity<byte[]> exchange(org.springframework.http.RequestEntity<?> request) {
         boolean idempotent = isIdempotent(request.getMethod());
         return circuitBreaker.execute(() -> attempt(request, idempotent));
     }
 
-    private ResponseEntity<byte[]> attempt(org.springframework.http.RequestEntity<byte[]> request, boolean idempotent) {
+    private ResponseEntity<byte[]> attempt(org.springframework.http.RequestEntity<?> request, boolean idempotent) {
         int attempts = 0;
         while (true) {
             attempts++;

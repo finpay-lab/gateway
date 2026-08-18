@@ -11,11 +11,12 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.context.WebApplicationContext;
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
 
 import com.finpay.gateway.security.TestJwts;
@@ -27,7 +28,6 @@ import com.sun.net.httpserver.HttpServer;
  * id (SECURITY.md, runtime-architecture.md).
  */
 @SpringBootTest
-@AutoConfigureMockMvc
 class GatewayIntegrationTest {
 
     private static HttpServer upstream;
@@ -66,7 +66,14 @@ class GatewayIntegrationTest {
     }
 
     @Autowired
+    private WebApplicationContext wac;
+
     private MockMvc mockMvc;
+
+    @org.junit.jupiter.api.BeforeEach
+    void setupMockMvc() {
+        this.mockMvc = MockMvcBuilders.webAppContextSetup(wac).build();
+    }
 
     @Test
     void forwards_request_and_propagates_verified_principal_and_correlation() throws Exception {

@@ -14,7 +14,7 @@ import com.nimbusds.jwt.SignedJWT;
  * Mints HS256 access tokens with the same shared lab secret the gateway
  * validates, so tests can exercise real token validation (SECURITY.md).
  */
-final class TestJwts {
+public final class TestJwts {
 
     static final String ISSUER = "http://idp.test/realms/finpay";
     static final String AUDIENCE = "finpay-api";
@@ -23,16 +23,16 @@ final class TestJwts {
     private TestJwts() {
     }
 
-    static String mint(String subject, List<String> roles) throws Exception {
+    public static String mint(String subject, List<String> roles) throws Exception {
         return mint(subject, roles, new Date(System.currentTimeMillis() + 60_000));
     }
 
     /** Mint with an arbitrary secret (used to build tokens the gateway must reject). */
-    static String mintWithSecret(String subject, List<String> roles, String secret) throws Exception {
+    public static String mintWithSecret(String subject, List<String> roles, String secret) throws Exception {
         return mint(subject, roles, new Date(System.currentTimeMillis() + 60_000), secret);
     }
 
-    static String mint(String subject, List<String> roles, Date expiration) throws Exception {
+    public static String mint(String subject, List<String> roles, Date expiration) throws Exception {
         return mint(subject, roles, expiration, SECRET);
     }
 

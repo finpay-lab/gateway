@@ -20,4 +20,7 @@ dependencies {
     implementation libs.common.web
 
     testImplementation libs.spring.boot.starter.test
+    // Declared literally: the precompiled testing-conventions plugin does not
+    // regenerate the catalog accessor for spring-boot-starter-test reliably.
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
 }

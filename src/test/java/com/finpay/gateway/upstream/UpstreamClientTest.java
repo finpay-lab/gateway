@@ -49,7 +49,11 @@ class UpstreamClientTest {
                     }
                 }
                 case "/slow" -> {
-                    Thread.sleep(1500);
+                    try {
+                        Thread.sleep(1500);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
                     respond(exchange, 200, "late");
                 }
                 case "/count" -> respond(exchange, 200, Integer.toString(calls));
@@ -68,7 +72,7 @@ class UpstreamClientTest {
     void retries_idempotent_get_until_success() {
         UpstreamClient client = client(new Upstream(Duration.ofMillis(500), Duration.ofMillis(500), 5, Duration.ofMillis(5), CB));
 
-        var response = client.exchange(RequestEntity.get(uri("/flaky")).build());
+        var response = client.exchange(RequestEntity.<byte[]>get(uri("/flaky")).build());
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(new String(response.getBody())).isEqualTo("pong");
@@ -90,11 +94,11 @@ class UpstreamClientTest {
     void opens_circuit_and_rejects_fast() {
         UpstreamClient client = client(new Upstream(Duration.ofMillis(500), Duration.ofMillis(500), 1, Duration.ofMillis(5), CB));
 
-        assertThatThrownBy(() -> client.exchange(RequestEntity.get(uri("/always-down")).build()))
+        assertThatThrownBy(() -> client.exchange(RequestEntity.<byte[]>get(uri("/always-down")).build()))
                 .isInstanceOf(UpstreamUnavailableException.class);
-        assertThatThrownBy(() -> client.exchange(RequestEntity.get(uri("/always-down")).build()))
+        assertThatThrownBy(() -> client.exchange(RequestEntity.<byte[]>get(uri("/always-down")).build()))
                 .isInstanceOf(UpstreamUnavailableException.class);
-        assertThatThrownBy(() -> client.exchange(RequestEntity.get(uri("/always-down")).build()))
+        assertThatThrownBy(() -> client.exchange(RequestEntity.<byte[]>get(uri("/always-down")).build()))
                 .isInstanceOf(CircuitBreaker.CircuitOpenException.class);
 
         assertThat(counts.get("/always-down").get()).isEqualTo(2);
@@ -104,7 +108,7 @@ class UpstreamClientTest {
     void read_timeout_throws() {
         UpstreamClient client = client(new Upstream(Duration.ofMillis(500), Duration.ofMillis(200), 1, Duration.ofMillis(5), CB));
 
-        assertThatThrownBy(() -> client.exchange(RequestEntity.get(uri("/slow")).build()))
+        assertThatThrownBy(() -> client.exchange(RequestEntity.<byte[]>get(uri("/slow")).build()))
                 .isInstanceOf(UpstreamUnavailableException.class);
     }
 
