@@ -25,7 +25,7 @@ gateway:
   routes:
     - id: customer
       path: /customer
-      uri: http://127.0.0.1:1
+      uri: ${gateway.test.upstream-url:http://127.0.0.1:1}
       required-roles: [CUSTOMER, OPERATOR, ADMIN]
     - id: admin
       path: /admin

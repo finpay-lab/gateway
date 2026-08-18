@@ -36,7 +36,10 @@ class GatewayIntegrationTest {
 
     @DynamicPropertySource
     static void pointCustomerRouteAtTestUpstream(DynamicPropertyRegistry registry) {
-        registry.add("gateway.routes[0].uri", () -> upstreamUrl);
+        // SB4 does not merge indexed-list dynamic properties (gateway.routes[0].uri
+        // nulls out the rest of the record). Point the in-test upstream at the
+        // route via a non-indexed placeholder instead.
+        registry.add("gateway.test.upstream-url", () -> upstreamUrl);
     }
 
     @BeforeAll
@@ -68,11 +71,21 @@ class GatewayIntegrationTest {
     @Autowired
     private WebApplicationContext wac;
 
+    @Autowired
+    private List<org.springframework.web.filter.OncePerRequestFilter> filters;
+
     private MockMvc mockMvc;
 
     @org.junit.jupiter.api.BeforeEach
     void setupMockMvc() {
-        this.mockMvc = MockMvcBuilders.webAppContextSetup(wac).build();
+        // Replicates what @AutoConfigureMockMvc did in SB3: register the gateway's
+        // @Component OncePerRequestFilter chain (auth, RBAC, CORS, rate-limit,
+        // forwarding) into MockMvc, honouring their @Order so requests are routed.
+        List<org.springframework.web.filter.OncePerRequestFilter> ordered = new java.util.ArrayList<>(filters);
+        org.springframework.core.annotation.AnnotationAwareOrderComparator.sort(ordered);
+        this.mockMvc = MockMvcBuilders.webAppContextSetup(wac)
+                .addFilters(ordered.toArray(new org.springframework.web.filter.OncePerRequestFilter[0]))
+                .build();
     }
 
     @Test
