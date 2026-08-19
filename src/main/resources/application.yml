@@ -3,3 +3,16 @@ server:
 spring:
   application:
     name: gateway
+
+# Edge AI guardrail (AI-7). Non-blocking by default: requests are scored and
+# flagged via response headers, never rejected, unless block=true.
+gateway:
+  guard:
+    enabled: true
+    block: false
+    ai:
+      # BYOK key; production value comes from the secret store (env var).
+      api-key: ${GATEWAY_GUARD_AI_API_KEY:}
+      endpoint: ${GATEWAY_GUARD_AI_ENDPOINT:https://api.openai.com/v1/chat/completions}
+      model: ${GATEWAY_GUARD_AI_MODEL:gpt-4o-mini}
+      timeout: 3s

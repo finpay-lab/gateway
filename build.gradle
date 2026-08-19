@@ -1,6 +1,10 @@
 plugins {
     id 'com.finpay.spring-conventions'
     id 'com.finpay.testing-conventions'
+    // The platform's spring-conventions applies org.springframework.boot INLINE
+    // (with explicit version) per service; applying it unversioned from the
+    // precompiled plugin breaks autoconfig wiring in the composite build.
+    alias(libs.plugins.spring.boot)
 }
 
 description = 'FinPay gateway.'
@@ -16,4 +20,5 @@ jar {
 dependencies {
     implementation libs.spring.boot.starter.web
     implementation libs.common.web
+    testImplementation libs.springBootTest
 }

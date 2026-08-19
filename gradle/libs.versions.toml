@@ -1,23 +1,27 @@
 [versions]
 java = "21"
-gradle = "8.10.2"
-springBoot = "3.3.5"
-springSecurity = "6.3.5"
-springKafka = "3.2.1"
-flyway = "10.20.1"
+gradle = "8.14.5"
+# Baseline aligned with the platform composite build (platform ADR-0012): the
+# composite build's build-logic ships the Spring Boot 4.1.0 Gradle plugin
+# class, which requires Gradle 8.14+ and the Spring Boot 4.1 BOM. Aligning the
+# gateway catalog avoids a 3.3.5-plugin-class/4.1.0-BOM mismatch.
+springBoot = "4.1.0"
+springSecurity = "7.0.0"
+springKafka = "4.0.0"
+flyway = "11.10.0"
 postgresql = "42.7.4"
 hikari = "5.1.0"
 redis = "5.4.0"
-opentelemetry = "1.43.0"
-micrometer = "1.13.5"
+opentelemetry = "1.49.0"
+micrometer = "1.15.0"
 archunit = "1.3.0"
-junit = "5.11.3"
-junitPlatform = "1.11.3"
+junit = "6.1.3"
+junitPlatform = "6.1.3"
 assertj = "3.26.3"
 mockito = "5.14.2"
-testcontainers = "1.20.4"
+testcontainers = "1.21.1"
 awaitility = "4.2.2"
-lombok = "1.18.34"
+lombok = "1.18.46"
 
 [libraries]
 # Spring
@@ -29,6 +33,7 @@ spring-boot-starter-data-jpa = { module = "org.springframework.boot:spring-boot-
 spring-boot-starter-data-redis = { module = "org.springframework.boot:spring-boot-starter-data-redis", version.ref = "springBoot" }
 spring-boot-starter-validation = { module = "org.springframework.boot:spring-boot-starter-validation", version.ref = "springBoot" }
 spring-boot-starter-actuator = { module = "org.springframework.boot:spring-boot-starter-actuator", version.ref = "springBoot" }
+springBootTest = { module = "org.springframework.boot:spring-boot-starter-test", version.ref = "springBoot" }
 spring-security-test = { module = "org.springframework.security:spring-security-test", version.ref = "springSecurity" }
 spring-kafka = { module = "org.springframework.kafka:spring-kafka", version.ref = "springKafka" }
 spring-kafka-test = { module = "org.springframework.kafka:spring-kafka-test", version.ref = "springKafka" }
