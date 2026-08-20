@@ -5,15 +5,8 @@ plugins {
 
 description = 'FinPay gateway.'
 
-// Services are bootable applications.
-bootJar {
-    enabled = true
-}
-jar {
-    enabled = true
-}
-
 dependencies {
     implementation libs.spring.boot.starter.web
     implementation libs.common.web
+    implementation libs.common.security
 }

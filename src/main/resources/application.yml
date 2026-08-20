@@ -3,3 +3,21 @@ server:
 spring:
   application:
     name: gateway
+
+finpay:
+  gateway:
+    # Issuer expected in JWT `iss` claim (Keycloak realm / internal IdP).
+    issuer: finpay
+    # HMAC secret for JWT signature verification. Empty = opaque-token mode
+    # (trusts the issuer claim). In production this is injected from a secret store.
+    jwt-secret: ""
+    # Paths that bypass JWT auth (comma-separated prefixes).
+    public-paths: /actuator,/health
+    # Token-bucket rate limit (Rule 8): capacity + refill per second per key.
+    rate-limit:
+      capacity: 100
+      refill-per-second: 10
+    # AI guardrail (FP-64): non-blocking by default; enable block-mode to reject.
+    guardrail:
+      block-mode: false
+      block-threshold: 0.85
