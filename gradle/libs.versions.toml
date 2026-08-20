@@ -69,6 +69,7 @@ common-web = { module = "com.finpay:common-web", version = "0.0.1" }
 common-security = { module = "com.finpay:common-security", version = "0.0.1" }
 common-observability = { module = "com.finpay:common-observability", version = "0.0.1" }
 common-test = { module = "com.finpay:common-test", version = "0.0.1" }
+common-ai = { module = "com.finpay:common-ai", version = "0.0.1" }
 
 [plugins]
 spring-boot = { id = "org.springframework.boot", version.ref = "springBoot" }
