@@ -14,8 +14,10 @@ import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+import org.springframework.web.util.ContentCachingRequestWrapper;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.Map;
 
@@ -26,6 +28,10 @@ import java.util.Map;
  *   - blocks (403) only when the decision is {@link GuardDecision#block()}.
  *
  * Runs AFTER JWT auth and BEFORE routing (per spec). Non-blocking by default.
+ *
+ * The request is wrapped in a {@link ContentCachingRequestWrapper} so the body
+ * can be read here without consuming the servlet input stream (which would
+ * break downstream controllers / other filters that also read the body).
  */
 @Component
 @Order(25)
@@ -47,10 +53,14 @@ public class GuardrailFilter extends OncePerRequestFilter {
             HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
 
-        String body = readBody(request);
-        Map<String, String> headers = collectHeaders(request);
+        // Cache the body so it can be read repeatedly without exhausting the stream.
+        ContentCachingRequestWrapper wrapped =
+                new ContentCachingRequestWrapper(request, 1_000_000);
+
+        String body = readBody(wrapped);
+        Map<String, String> headers = collectHeaders(wrapped);
         GuardDecision decision = guard.evaluate(
-                request.getMethod(), request.getServletPath(), headers, body);
+                wrapped.getMethod(), wrapped.getServletPath(), headers, body);
 
         response.setHeader(HEADER_RISK, String.format("%.2f", decision.riskScore()));
         if (decision.reason() != null && !decision.reason().isBlank()) {
@@ -59,7 +69,7 @@ public class GuardrailFilter extends OncePerRequestFilter {
 
         if (decision.block()) {
             log.warn("guardrail BLOCKED {} {} risk={} reason={}",
-                    request.getMethod(), request.getServletPath(),
+                    wrapped.getMethod(), wrapped.getServletPath(),
                     decision.riskScore(), decision.reason());
             response.setStatus(HttpStatus.FORBIDDEN.value());
             response.getWriter().write("{\"error\":\"" + ErrorCode.RISK_REJECTED.name() + "\"}");
@@ -67,10 +77,10 @@ public class GuardrailFilter extends OncePerRequestFilter {
         }
         if (decision.riskScore() > 0.0) {
             log.info("guardrail FLAGGED {} {} risk={} reason={}",
-                    request.getMethod(), request.getServletPath(),
+                    wrapped.getMethod(), wrapped.getServletPath(),
                     decision.riskScore(), decision.reason());
         }
-        chain.doFilter(request, response);
+        chain.doFilter(wrapped, response);
     }
 
     private static Map<String, String> collectHeaders(HttpServletRequest req) {
@@ -84,18 +94,9 @@ public class GuardrailFilter extends OncePerRequestFilter {
         return m;
     }
 
-    private static String readBody(HttpServletRequest req) {
-        try {
-            var reader = req.getReader();
-            var sb = new StringBuilder();
-            char[] buf = new char[4096];
-            int n;
-            while ((n = reader.read(buf)) != -1 && sb.length() < 1_000_000) {
-                sb.append(buf, 0, n);
-            }
-            return sb.toString();
-        } catch (IOException e) {
-            return "";
-        }
+    private static String readBody(ContentCachingRequestWrapper req) {
+        byte[] content = req.getContentAsByteArray();
+        if (content == null || content.length == 0) return "";
+        return new String(content, StandardCharsets.UTF_8);
     }
 }

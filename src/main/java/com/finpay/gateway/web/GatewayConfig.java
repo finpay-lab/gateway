@@ -7,6 +7,8 @@ import com.finpay.gateway.infrastructure.TokenService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.List;
 
@@ -74,5 +76,23 @@ public class GatewayConfig {
     @Bean
     public GuardrailFilter guardrailFilter(RequestGuard requestGuard) {
         return new GuardrailFilter(requestGuard);
+    }
+
+    /**
+     * Permissive CORS source required by Spring Boot 4.1's management security
+     * auto-configuration (ManagementWebSecurityAutoConfiguration expects a
+     * CorsConfigurationSource bean). Allowed origins are narrowed to the cluster
+     * ingress / observability tooling in production.
+     */
+    @Bean
+    public UrlBasedCorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration cfg = new CorsConfiguration();
+        cfg.setAllowedOriginPatterns(List.of("*"));
+        cfg.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        cfg.setAllowedHeaders(List.of("*"));
+        cfg.setAllowCredentials(true);
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", cfg);
+        return source;
     }
 }
