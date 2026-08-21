@@ -1,0 +1,82 @@
+# Best-practice CD: build image -> push to GHCR -> update gitops (Argo syncs).
+# Triggered after a successful push to main. Uses:
+#   - GITHUB_TOKEN for GHCR push (packages: write)
+#   - GH_PAT (repo + read:packages) for the gitops tag update + cluster pull
+name: CD
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-push:
+    name: Build & Push Image
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.meta.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Java
+        uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11512c7c # v4.7.1
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@0bdd871935719febd78681f1972c764c0c19039f # v4.3.0
+
+      - name: Build bootJar
+        run: ./gradlew clean bootJar --no-daemon
+
+      - name: Log in to GHCR
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@369eb066afb269c6e412162b3827050a6793921b # v5.6.1
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,format=long
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push
+        uses: docker/build-push-action@48aba3b46d1b1fec4febb7c5d0c64409512c894c # v6.10.0
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+  promote:
+    name: Update GitOps (Argo auto-syncs)
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout gitops
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: finpay-lab/gitops
+          token: ${{ secrets.GH_PAT }}
+          path: gitops
+
+      - name: Update image tag
+        run: |
+          FILE="gitops/apps/values/${{ github.event.repository.name }}.yaml"
+          sed -i "s/^\( *tag: *\).*/\1${{ needs.build-and-push.outputs.tag }}/" "$FILE"
+          cd gitops && git add -A && git commit -m "ci(${{ github.event.repository.name }}): promote ${{ needs.build-and-push.outputs.tag }}" && git push
