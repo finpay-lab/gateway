@@ -1,16 +1,53 @@
 plugins {
     id 'com.finpay.spring-conventions'
     id 'com.finpay.testing-conventions'
+    id 'com.google.protobuf'
 }
 
 description = 'FinPay gateway.'
+
+repositories {
+    mavenCentral()
+}
 
 dependencies {
     implementation libs.spring.boot.starter.web
     implementation libs.common.web
     implementation libs.common.security
+    // ADR-0014: gateway terminates REST inbound (from clients) and fans out to the
+    // domain services over the internal gRPC mesh. Stubs are generated locally from
+    // the proto files in the finpay-platform submodule (single source of truth).
+    implementation 'io.grpc:grpc-netty-shaded:1.69.0'
+    implementation 'io.grpc:grpc-stub:1.69.0'
+    implementation 'io.grpc:grpc-protobuf:1.69.0'
+    implementation 'com.google.protobuf:protobuf-java:4.28.3'
+    implementation 'com.google.code.findbugs:jsr305:3.0.2'
+    implementation 'javax.annotation:javax.annotation-api:1.3.2'
 }
 
-bootJar {
-    enabled = true
+protobuf {
+    protoc {
+        artifact = "com.google.protobuf:protoc:4.28.3"
+    }
+    plugins {
+        grpc {
+            artifact = "io.grpc:protoc-gen-grpc-java:1.69.0"
+        }
+    }
+    generateProtoTasks {
+        all().configureEach {
+            builtins { java {} }
+            plugins { grpc {} }
+        }
+    }
+}
+
+// Proto files are the single source of truth, vendored via the finpay-platform
+// submodule (ADR-0014).
+sourceSets {
+    main {
+        proto {
+            srcDirs 'finpay-platform/grpc-contracts/src/main/proto'
+        }
+    }
 }
